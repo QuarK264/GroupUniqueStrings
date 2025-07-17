@@ -1,10 +1,7 @@
 package com.example.groupuniquestrings;
 
-import java.io.BufferedReader;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -19,7 +16,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Stream;
 
 public class Main {
 
@@ -43,13 +39,9 @@ public class Main {
     private static List<String> getLines() {
         var path = Main.class.getResource(linesFile);
         List<String> lines = null;
-        InputStream inputStream = null;
-        BufferedReader bufferReader = null;
         try {
             if (path != null) {
-                inputStream = Files.newInputStream(Path.of(path.toURI()));
-                bufferReader = new BufferedReader(new InputStreamReader(inputStream));
-                lines = bufferReader.lines().toList();
+                lines = Files.readAllLines(Path.of(path.toURI()));
             }
         } catch (IOException e) {
             System.out.println("Failed to read file");
@@ -58,29 +50,14 @@ public class Main {
         } catch (Exception e) {
             System.out.println("Failed to execute instruction");
             System.out.println(e.getMessage());
-        } finally {
-            try {
-                if (bufferReader != null) {
-                    bufferReader.close();
-                }
-                if (inputStream != null) {
-                    inputStream.close();
-                }
-            } catch (IOException e) {
-                System.out.println("Failed to close buffer or stream");
-            }
         }
         return lines;
     }
 
     private static List<String> getLines(String path) {
         List<String> lines = null;
-        InputStream inputStream = null;
-        BufferedReader bufferReader = null;
         try {
-            inputStream = Files.newInputStream(Path.of(path));
-            bufferReader = new BufferedReader(new InputStreamReader(inputStream));
-            lines = bufferReader.lines().toList();
+            lines = Files.readAllLines(Path.of(path));
         } catch (IOException e) {
             System.out.println("Failed to read file");
             System.out.println(e.getMessage());
@@ -88,17 +65,6 @@ public class Main {
         } catch (Exception e) {
             System.out.println("Failed to execute instruction");
             System.out.println(e.getMessage());
-        } finally {
-            try {
-                if (bufferReader != null) {
-                    bufferReader.close();
-                }
-                if (inputStream != null) {
-                    inputStream.close();
-                }
-            } catch (IOException e) {
-                System.out.println("Failed to close buffer or stream");
-            }
         }
         return lines;
     }
@@ -116,9 +82,9 @@ public class Main {
                     if (groupNumber == null) {
                         groupNumber = groupNumberFromParts;
                     } else if (!groupNumber.equals(groupNumberFromParts)) {
-                        for (String line2 : groups.get(groupNumberFromParts)) {
-                            groups.get(groupNumber).add(line2);
-                            apply(getColumnsOf(line2), groupNumber, parts);
+                        for (String line : groups.get(groupNumberFromParts)) {
+                            groups.get(groupNumber).add(line);
+                            apply(getColumnsOf(line), groupNumber, parts);
                         }
                         groups.set(groupNumberFromParts, new HashSet<>());
                     }
@@ -138,7 +104,11 @@ public class Main {
     }
 
     private static String[] getColumnsOf(String line) {
-        if (!Stream.of(line.split(";")).allMatch(s -> s.matches("^\"\\d*\"$"))) return new String[0];
+        for (int i = 1; i < line.length() - 1; i++) {
+            if (line.charAt(i) == '"' && line.charAt(i - 1) != ';' && line.charAt(i + 1) != ';') {
+                return new String[0];
+            }
+        }
         return line.replaceAll("\"", "").split(";");
     }
 
@@ -164,9 +134,9 @@ public class Main {
             outputStream.write(headerBytes);
             sortLines(groupedLines);
             for (int i = 0; i < groupedLines.size(); i++) {
-                outputStream.write(("Группа " + (i + 1) + '\n').getBytes(StandardCharsets.UTF_8));
-                var preparedString = prepareString(groupedLines.get(i));
-                var bytes = preparedString.getBytes();
+                var stringBuilder = new StringBuilder().append("Группа ").append(i + 1).append('\n');
+                stringBuilder.append(prepareString(groupedLines.get(i)));
+                var bytes = stringBuilder.toString().getBytes(StandardCharsets.UTF_8);
                 outputStream.write(bytes);
             }
             var path = Paths.get(outputFile);
@@ -184,7 +154,7 @@ public class Main {
     private static String prepareHeader(List<Set<String>> groupedLines) {
         var resultString = new StringBuilder();
         long count = groupedLines.stream().filter(g -> g.size() > 1).count();
-        return resultString.append("Колличество групп с более чем одним элементом: ").append(count).append("\n").toString();
+        return resultString.append("Количество групп с более чем одним элементом: ").append(count).append("\n").toString();
     }
 
     private static void sortLines(List<Set<String>> groupedLines) {
